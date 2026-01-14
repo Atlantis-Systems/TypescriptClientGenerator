@@ -1,0 +1,134 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  PROJECT_PATH: 'TypescriptClientGenerator/TypescriptClientGenerator.csproj'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+      
+    - name: Build
+      run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release
+      
+    - name: Test tool with sample OpenAPI spec
+      run: |
+        dotnet run --project ${{ env.PROJECT_PATH }} -- --input tests/sample-openapi.json --output TestClient.ts
+        
+    - name: Verify generated client
+      run: |
+        if [ ! -f "TestClient.ts" ]; then
+          echo "Generated client file not found!"
+          exit 1
+        fi
+        echo "Generated client file found and verified"
+        
+    - name: Pack
+      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: TypescriptClientGenerator/bin/Release/*.nupkg
+
+  publish:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # Only publish on pushes to main branch, not on PRs or other branches
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.10.2
+      with:
+        versionSpec: '6.x'
+        
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v0.10.2
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+      
+    - name: Build
+      run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release -p:Version=${{ steps.gitversion.outputs.semVer }}
+      
+    - name: Pack
+      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.semVer }}
+      
+    - name: Publish to NuGet
+      run: dotnet nuget push TypescriptClientGenerator/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-package
+        path: TypescriptClientGenerator/bin/Release/*.nupkg
+
+  verify-package:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-package
+        path: ./artifacts
+        
+    - name: Install tool from local package
+      run: |
+        PACKAGE_PATH=$(find ./artifacts -name "*.nupkg" | head -1)
+        dotnet tool install --global --add-source ./artifacts TypescriptClientGenerator
+        
+    - name: Test installed tool
+      run: |
+        typescript-client-generator --input tests/sample-openapi.json --output VerifyClient.ts
+        
+    - name: Verify tool output
+      run: |
+        if [ ! -f "VerifyClient.ts" ]; then
+          echo "Tool verification failed - no output generated!"
+          exit 1
+        fi
+        echo "Tool verification successful!"

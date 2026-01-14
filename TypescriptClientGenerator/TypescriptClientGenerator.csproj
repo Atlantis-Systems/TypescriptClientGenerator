@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>typescript-client-generator</ToolCommandName>
+    <PackageId>TypescriptClientGenerator</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>TypescriptClientGenerator</Authors>
+    <Description>A tool for generating Typescript API clients from OpenAPI specifications</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Atlantis-Systems/typescript-client-generator</RepositoryUrl>
+    <PackageTags>openapi;swagger;client;generator;typescript;dotnet;tool</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.2" />
+  </ItemGroup>
+
+</Project>
