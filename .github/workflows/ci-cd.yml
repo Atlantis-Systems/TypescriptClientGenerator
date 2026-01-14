@@ -88,7 +88,10 @@ jobs:
       run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.semVer }}
       
     - name: Publish to NuGet
-      run: dotnet nuget push TypescriptClientGenerator/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      run: |
+        for package in TypescriptClientGenerator/bin/Release/*.nupkg; do
+          dotnet nuget push "$package" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        done
       
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
