@@ -7,10 +7,12 @@ namespace TypescriptClientGenerator.Generators;
 public class TypeScriptGenerator
 {
     private readonly OpenApiSpec _spec;
+    private readonly string? _clientName;
 
-    public TypeScriptGenerator(OpenApiSpec spec)
+    public TypeScriptGenerator(OpenApiSpec spec, string? clientName = null)
     {
         _spec = spec;
+        _clientName = clientName;
     }
 
     public string Generate()
@@ -131,6 +133,9 @@ public class TypeScriptGenerator
 
     private string GetClientName()
     {
+        if (!string.IsNullOrEmpty(_clientName))
+            return _clientName;
+
         var title = _spec.Info.Title
             .Replace(" ", "")
             .Replace("|", "")
