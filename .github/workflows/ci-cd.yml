@@ -72,6 +72,20 @@ jobs:
     - name: Determine Version
       id: gitversion
       uses: gittools/actions/gitversion/execute@v0.10.2
+      with:
+        useConfigFile: true
+        configFilePath: GitVersion.yml
+      
+    - name: Display Version
+      run: |
+        echo "Major: ${{ steps.gitversion.outputs.major }}"
+        echo "Minor: ${{ steps.gitversion.outputs.minor }}"
+        echo "Patch: ${{ steps.gitversion.outputs.patch }}"
+        echo "MajorMinorPatch: ${{ steps.gitversion.outputs.majorMinorPatch }}"
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.commitsSinceVersionSource }}"
       
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -82,10 +96,10 @@ jobs:
       run: dotnet restore ${{ env.PROJECT_PATH }}
       
     - name: Build
-      run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release -p:Version=${{ steps.gitversion.outputs.MajorMinorPatch }}
+      run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release -p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
       
     - name: Pack
-      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} --output ./nupkg
+      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} --output ./nupkg
       
     - name: Publish to NuGet
       env:
