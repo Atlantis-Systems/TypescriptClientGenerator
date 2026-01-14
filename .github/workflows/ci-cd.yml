@@ -44,13 +44,13 @@ jobs:
         echo "Generated client file found and verified"
         
     - name: Pack
-      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release
+      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release --output ./nupkg
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: nuget-package
-        path: TypescriptClientGenerator/bin/Release/*.nupkg
+        path: ./nupkg/*.nupkg
 
   publish:
     needs: build-and-test
@@ -85,14 +85,17 @@ jobs:
       run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release -p:Version=${{ steps.gitversion.outputs.semVer }}
       
     - name: Pack
-      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.semVer }}
+      run: dotnet pack ${{ env.PROJECT_PATH }} --no-build --configuration Release -p:PackageVersion=${{ steps.gitversion.outputs.semVer }} --output ./nupkg
       
     - name: Publish to NuGet
-      if: ${{ secrets.NUGET_API_KEY != '' }}
       env:
         NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
       run: |
-        for package in TypescriptClientGenerator/bin/Release/*.nupkg; do
+        if [ -z "$NUGET_API_KEY" ]; then
+          echo "NUGET_API_KEY secret is not set. Skipping publish."
+          exit 0
+        fi
+        for package in ./nupkg/*.nupkg; do
           dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
         done
       
@@ -100,7 +103,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: release-package
-        path: TypescriptClientGenerator/bin/Release/*.nupkg
+        path: ./nupkg/*.nupkg
 
   verify-package:
     needs: build-and-test
